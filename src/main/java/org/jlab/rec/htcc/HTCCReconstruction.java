@@ -21,6 +21,8 @@ public class HTCCReconstruction {
     // HTCC geometry parameters
     private final ReconstructionParameters parameters;
     public IndexedTable gain;
+    public IndexedTable time;
+
     // Raw HTCC data from the bank
     private int[] hitnArray;
     private int[] sectorArray;
@@ -92,17 +94,18 @@ public class HTCCReconstruction {
         ithetaArray = new int[rows];
         iphiArray = new int[rows];
         for (int i = 0; i < bankDGTZ.rows(); i++) {
-            //       System.out.println("rows " + bankDGTZ.rows());
             //      hitnArray[i]   = bankDGTZ.getInt("hitn", i);
             sectorArray[i] = bankDGTZ.getByte("sector", i);
             ringArray[i] = bankDGTZ.getShort("component", i);
             halfArray[i] = bankDGTZ.getByte("layer", i);
+            timeArray[i] = bankDGTZ.getFloat("time", i);
+
             if (sectorArray[i] > 0) {
                 npheArray[i] = (100 * (bankDGTZ.getInt("ADC", i))) / ((int) gain.getDoubleValue("gain", sectorArray[i], halfArray[i], ringArray[i]));
+                    timeArray[i] = timeArray[i] - (time.getDoubleValue("shift", sectorArray[i], halfArray[i], ringArray[i]));
+    
             }
-    //        System.out.println("npe " + npheArray[i]);
-
-            timeArray[i] = bankDGTZ.getFloat("time", i);
+    
         }
         numHits = sectorArray.length;
         // Create and fill ithetaArray and iphiArray so that the itheta and iphi
@@ -113,7 +116,6 @@ public class HTCCReconstruction {
             ithetaArray[hit] = Math.abs(ringArray[hit]) - 1;
             int iphi = 2 * Math.abs(sectorArray[hit]) + Math.abs(halfArray[hit]) - 3;
             iphi = (iphi == 0 ? iphi + 12 : iphi) - 1;
-            System.out.println("ihpi " + iphi + " sector "  + sectorArray[hit] + " hs " + halfArray[hit]);
             iphiArray[hit] = iphi;
         }
     }
@@ -167,14 +169,11 @@ public class HTCCReconstruction {
             int iphi = iphiArray[maxHitRawDataIndex];
             // Numver of Photoelectrons
             int nphe = maxHitNumPhotoelectrons;
-            System.out.println("hit in cluster " + nphe);
             // Hit Time
             double time = timeArray[maxHitRawDataIndex] - parameters.t0[itheta];
             // Detector Coordinates (polar)
             double theta = parameters.theta0[itheta];
             double phi = parameters.phi0 + 2.0 * parameters.dphi0 * iphi;
-            System.out.println("grow cluster phi " + phi*57 + " iphi " + iphi);
-
             // Detector Alignment Errors
             double dtheta = parameters.dtheta0[itheta];
             double dphi = parameters.dphi0;
@@ -248,11 +247,8 @@ public class HTCCReconstruction {
         // For each hit in the cluster:
         for (int currHit = 0; currHit < cluster.getNHitClust(); ++currHit) {
             // Get the hits coordinates
-            System.out.println("grow cluster " + cluster.getNHitClust());
             int ithetaCurr = cluster.getHitITheta(currHit);
             int iphiCurr = cluster.getHitIPhi(currHit);
-            System.out.println("grow cluster itheta " + ithetaCurr);
-            System.out.println("grow cluster iphi " + iphiCurr);
 
             // For each of the remaining hits:
             int hit = 0;
@@ -262,22 +258,16 @@ public class HTCCReconstruction {
                 // Get the coordinates of the test hit
                 int ithetaTest = ithetaArray[testHit];
                 int iphiTest = iphiArray[testHit];
-                // Find the distance
-                System.out.println("grow cluster itheta hit " + ithetaTest);
-                System.out.println("grow cluster iphi hit " + iphiTest);
 
+                // Find the distance
                 int ithetaDiff = Math.abs(ithetaTest - ithetaCurr);
                 int iphiDiff = Math.min((12 + iphiTest - iphiCurr) % 12, (12 + iphiCurr - iphiTest) % 12);
-                
+
                 // Find the difference in time
                 double time = timeArray[testHit] - parameters.t0[ithetaTest];
                 double timeDiff = Math.abs(time - clusterTime);
-                System.out.println("time diff " + timeDiff);
-                System.out.println("theta diff " + ithetaDiff);
-                System.out.println("phi diff " + iphiDiff);
 
                 int npheTest = npheArray[testHit];
-                System.out.println("adding " + npheTest);
                 // If the test hit is close enough in space and time
                 if ((ithetaDiff == 1 || iphiDiff == 1)
                         && (ithetaDiff + iphiDiff <= 2)
@@ -286,7 +276,6 @@ public class HTCCReconstruction {
                     remainingHits.remove(hit);
                     // Get the Numeber of Photoelectrons
                     npheTest = npheArray[testHit];
-                    System.out.println("added " + npheTest);
                     // Get the Detector Coordinates (polar)
                     double thetaTest = parameters.theta0[ithetaTest];
                     double phiTest = parameters.phi0 + 2.0 * parameters.dphi0 * iphiTest;
@@ -388,7 +377,10 @@ public class HTCCReconstruction {
             nhitmaxclst = 4;
             nthetamaxclst = 2;
             nphimaxclst = 2;
-            maxtimediff = 2;
+            //defaul value
+            //maxtimediff = 2;
+            maxtimediff = 8;
+
             t0 = new double[]{11.54, 11.93, 12.33, 12.75};
         }
 
