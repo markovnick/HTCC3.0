@@ -35,8 +35,6 @@ public class HTCCReconstructionService extends ReconstructionEngine{
             HTCCReconstruction reco = new HTCCReconstruction();
               reco.gain  = this.getConstantsManager().getConstants(runNo, "/calibration/htcc/gain");
               reco.time  = this.getConstantsManager().getConstants(runNo, "/calibration/htcc/time");
-              System.out.println("----> Starting reco..");
-
               reco.processEvent(event);
         } catch (Exception e){
             System.out.println("----> error with HTCC reconstruction..");
